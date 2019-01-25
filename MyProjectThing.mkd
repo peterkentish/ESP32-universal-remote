@@ -1,0 +1,145 @@
+
+IR TV Remote
+===
+
+by Peter Kentish de la Iglesia and Daniel Reynolds
+
+**IMPORTANT**
+
+Things to note when using our remote:
+  * When first setup you must connect it to an access point before you get to the main remote function
+  * To go back from a page, shake the device
+  * Some USB power supplies cause a crash in which there is a brownout error. Although unlikely, if you encounter this issue we found powering the device from a different source fixed it
+
+# Introduction
+In our project we set out to create a universal, customisable and user friendly IR remote using the Unphone made by the University of Sheffield. Although the general application is for TVs, it can be applied to any IR based communication system. 
+
+We used a variety of the Unphones inbuilt technologies to maximise the usability of the device, including the touchscreen, the accelerometer, the expander board, the IR Leds and more. A key feature to help with the usability is the fact that the remote can be commanded by a phone via a webserver that the Unphone serves up. 
+
+An overview of the features we implemented can be found [here](https://youtu.be/r-hq1210taU).
+
+# Code Overview
+
+To implement our solution, we used 4 classes:
+
+* MyProjectThing.ino 
+* DrawingThing.ino/.h
+* ListeningThing.ino/.h
+* DoingThing.ino/.h
+* LearningThing.ino/.h
+* SendingThing.ino/.h
+* WiFiThing.ino/.h
+* OTAThing.ino/.h
+* IRCodes.cpp/.h
+* Container.cpp/.h
+(and the included unphone.cpp/.h)
+
+## MyProjectThing
+
+This class is the main class responsible for the set up and main processes during the loop. The setup initialises the Unphone and it’s various accessories.
+
+The setup method is also responsible for initialising a web server that users can access through their phones. This gives the added ability for multiple people in the room to make use of the tv remote by them accessing it through their own personal device. This method also initialises the default tiles that are displayed on the remote. These are (from top left to bottom right):
+Power
+Volume Up
+Channel Up
+Volume Down
+Channel Down
+Settings
+The loop method is then in charge of ensuring the contents displayed on screen are correct and are being handled correctly. The individual methods for this are in the DrawingThing and ListeningThing classes as this allowed the code to be better split across This method also keeps track of the motion that the Unphone is undergoing- this allows the back to function when the phone is shook by the user. We found this to be a quick and reliable way to go back and allowed for bigger buttons to be presented on screen. This is managed in the listenForShake method when a menu that requires it is on screen.
+
+### DrawingThing
+This class and header file are responsible for drawing the different pages on the screen. There are 9 different pages that have different roles. The home screen is the main remote but then there are the settings pages that are responsible for managing different attributes that are associated with a single container (or multiple where the user has chosen to change the manufacturer for all containers).
+    
+### ListeningThing
+This class and header file are responsible for listening to the touch commands presented by the user. What the touch screen is listening for is dependent on what has been drawn on screen. That means for each page that has been drawn there has to be a corresponding listening method. 
+    
+### LearningThing
+This class and header file are responsible for using the Expander board to listen for IR codes. This is used when the remote is learning a new code. When a user selects `Settings`, and then `Manage` and then `Scan new action` the Unphone uses the IR receiver on the expander board to listen for an IR code it is sent. It then saves this code as the selected containers function code. 
+
+### SendingThing
+This class and header file are responsible for using the appropriate protocol to send the button IR code. Different brands have different protocols for sending data, and this function identifies the button brand and uses the correct protocol for that brand. 
+
+### DoingThing
+This class and header file are responsible for completing the actions once a touch screen press has occurred. The methods in here are generally written for each page although some contain a switch depending on which page the listen has come from.
+
+### IRCodes
+This class and header file contain all of the code data for the IR section. When the button is pressed, the container object calls one of the functions in this class and requests that functions IR code with respect to the brand of the button.
+
+### Container
+Container is the real hero of the day. It is essentially an object for each button, containing the colour, title and brand. It also has a `getData()` function which uses the title to return the correct IR code. The nature of it being an object means it is highly customisable, in a very easy way. Each button is independent and can be set and accessed throughout the code, which made certain functionality much easier to implement. 
+
+### OTAThing and WiFiThing
+We implemented our OTA code from the previous exercise, as it is both reliable and secure. For more information on this implementation, see the `MyOTAThing.mkd` file in our MyOTAThing folder. The WiFiThing also serves a secondary purpose as handling data communications from a phone, allowing the system to be driven using a phone. This helps combat the limitation of the not so powerful onboard IR led’s, as you can place the unphone next to the IR receiver and then simply send the signals from a phone.
+
+Although the code is there, it is currently not supported due to the server being down, so where it would be it has been commented out.
+
+# Design Justifications
+During the design process, we decided that we wanted to split the project into classes and methods as much as possible. 
+
+Each `.ino` file has a header file to declare variables and function prototypes, which allows for much easier interfacing between classes and enforces code consistency. It also allows objects such as our `Containers` to be easily viewed from a high level so that they are easier to understand. 
+
+We decided to separate our functions into classes by their main purpose. For examples, functions related to drawing the screen go into DrawingThing. Functions related to sending into SendingThing, listening into ListeningThing and so on. This meant it was much easier to navigate the file structure and add functionality when needed. Although this resulted in more classes than might be necessary, it was much cleaner and easier to work with.
+
+We decided to arrange the remote screen into 6 easy to click, large square buttons. This was to ensure that it was user friendly and you could consistently get a good button press. These six tiles are each a Container object. The container object is what allows for easy customizability of each button, as it is easy to get and set the fields that represent the object throughout the file structure. 
+
+Due to the low power emission of the onboard IR LEDs, you often have to get close to the receiver with the remote for it to recognise the commands. For this reason, we implemented a webserver system which allows users to connect to the Unphone with their own phones and send IR signals that way. This means the Unphone does not need to be with the user except when configuring the buttons, which is a useful feature.
+
+Due to the limited space on each screen, we decided to use a ‘shake to navigate’ feature. When in any screen that is not the main screen, the user can shake the device (quite gently) and it will navigate back a page. This freed up screen space, allowing for a `next` button. The next buttons is where additional operations can be performed that do not relate to individual containers on the screen, such as checking battery percentage, changing the manufacturer of all buttons and doing an OTA update. 
+
+An important part of this project was implementing a ‘Custom code’ system, whereby a user could point their remote at the device and then assign it to a button. This expanded the uses of the remote to include sending signals from absolutely any device. To do this, the user must go to `Settings->Manage->Next page->Scan Action from Remote`. Once they have this code, they can then click confirm and it will be assigned to that button.
+
+To get codes for televisions we did not have access to, we used [this](http://lirc.sourceforge.net) website. It is essentially a database of remotes of all different kinds and their IR codes. This meant we could implement codes for a lot more TVs and our remote was even more useful.
+
+We were planning to implement an SD card based serialisation process for the containers, which would mean that even after power off on and on the container states would be saved. However the SD card (even after partitioning to FAT32) was proving very hard to write data to, so due to time constraints we had to leave this unimplemented.
+
+# Problems
+During the project, we ran into a couple of issues. Some we were able to solve and some we ran out of time to have a look at. The SD Card based problem was discussed above and sadly was something that
+we couldn't solve. Equally, we were not able to fully implement the OTA update due to a lack of time to test it on the Gate server.
+
+An issue we had was ghost touch screen presses. These seemed to mean that the wrong part of the screen was being detected as pressed. This was less than ideal as it would often mean that the wrong page
+was navigated to on the second touch. We fixed this by adding in some cleaning up so the action only occurred when the press was intentional. This involved ensuring that there was a press (i.e. z > 0)
+because sometimes there were almost default touches passed in that were something like X:1, Y:0, z:0. This was quite an easy way to classify these as useless. Another thing we did was to calculate the
+X and Y difference between an the previously listen touch and the next one. If they are in the exact same place, then again it is likely that there was some noisy data returned. We chose a threshold of
+100 as we felt this would be big enough to work as you'd expect without preventing the user from pressing a button in the same place as the last one. We found this solved the problem pretty well and has
+lead to a more responsive touch screen.
+
+A different sort of issue but an issue all the same was the size of the screen. We were fully aware it may be difficult to press smaller buttons, but it became difficult trying to implement things like
+a back button on the device. This didn't really fit in the tile/list UI that we had implemented. Knowing there were some other technologies on the device, we decided to look at using the acclerometer to
+detect the user shaking the device. This was implemented using a List that could behave like a stack. In each loop function, a acclerometer magnitude was pushed onto the back of the list. If the list was bigger than 10, then the front item was popped off. This meant that there was a constant storage of the most recent magnitudes that could then be used to judge if the device was being shaken. This motion
+would then trigger the device to go back to the previous page. We found it was a nice method of going back without taking up screen space.
+
+Another issue we had that we were able to solve was a Guru Meditation Error when it came to demo-ing the solution. This meant that the device would completely freeze during after the page has loaded. We
+researched the issue and found that there was some WiFi.h and IRRemote.h compatibility issues as seen [here](https://github.com/z3t0/Arduino-IRremote/issues/518). This meant that the IRRemote worked
+when it was enabled after the WiFi had been connected but would fail if it hadn't. If the WiFi wasn't even begun, the enable method would work fine. The issue we ran into in the demo happened because
+the internet was dropping slightly in the lab. This meant that the WiFi status was Disconnected. As this was the case, enabling the IR caused the program to instantly lock. Since the demo, the code has
+been edited so that it only enables the IR when the WiFi is connected, be it in the set up or when the SSID/password has been set by the user. This doesn't help with the connection dropouts but is the best
+that could be achieved with the time available.
+ 
+# Security
+Security was not a big concern when initially designing the project, as it is an IR remote. However, we made sure to consider it in all design decisions whilst implementing our solution. It was an especially important consideration once we decided to make the device available for OTA updates. Although the functionality we implement is only for a TV remote, if a provider of malicious firmware were to push a dangerous update onto the device, there is the possibility that they could do more than just send IR signals.
+
+For this reason, within our OTA update system we have implemented a key system which means only verified publishers can send data to the device. This leads to the user being able to be confident that any firmware downloads that are received are from the correct sources, and not from unwanted third parties. The code for the update to run is there, but commented out due to the server the updates are obtained from being unavailable. If the server was up and running, or a new one were configured, then the functionality is there and ready to go. 
+
+In addition to this, the internet connection could be made more secure using HTTPS, which is a secure and encrypted method of communication. Unfortunately we had to leave this to be implemented in a future update due to time constraints
+
+A potential vulnerability is the access via phone, as the access point that is created is open. This was done purposefully as it would be too much setup for a simple remote to have to set the buttons as well as the AP information. It also allows multiple people to have access to the remote via their personal mobile phones, so at a party everyone could contribute if it was set as a voting system, for example. This does however mean that a person nearby but not involved could access the ESP web server, although they could do little more than annoy the user by changing their channels. 
+
+# Testing
+In order to test our code, we used it on a variety of different TV’s and with different commands. Our most accessible TV for testing was a Technika which emitted codes via the NEC protocol. We could use this TV to make sure the remote was sending correct signals during testing and that the remote could learn new signals. We also had access (via friends, we aren’t that rich) to a Panasonic and Sony TV which allowed us to trial the default codes found on the internet. The codes worked which helped verify the authenticity of their source.
+
+To test button management functions we would first make sure they work with the default (and correct) code for Technika . We would then change it to an incorrect code (such as Sony) and verify that it now did not work. This confirmed the manage functions at least changed the emitted code. We would then test the funciton. For example, if it were *set all manufacturers* we would set it to Technika and see if the TV behaved as expected. Or if it were to learn the signal from the remote, we would do that and then try and use the signal on the TV. 
+
+Our testing followed a similar process to that seen below, however it was not all documented as there were many iterations. 
+
+| Test case                                                     | Expected Result                               | Actual Result                     | Notes                                         |
+| ---------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
+| Send Technika power command                                      | Technika TV turns off                          |  technika TV turned off   | had to be close to screen                             |
+| Send other Technika TV commands                                  | Each remote command matches what happens on TV   |Volume down was actually volume up, otherwise good |                            |
+| Send Sony TV commands, then switch to technika                   | Sony commands don't work, switch to Technika they do |Sony commands didn't work, technika did |                            |
+| Send Sony TV commands, then read in Technika commands from original remote| Sony commands don't work, learn Technika they do |Sony commands didn't work, technika learnt command did |   Screen got stuck after learning command                         |
+| Send Technika power command by phone                                  | Technika TV turns off                          |  technika TV turned off   | Unphone had to be close to screen                             |
+
+
+
+
+
